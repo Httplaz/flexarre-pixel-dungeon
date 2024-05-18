@@ -28,6 +28,7 @@ android {
             dependencies {
                 debugImplementation project(':services:updates:debugUpdates')
                 debugImplementation project(':services:news:debugNews')
+                debugImplementation "com.github.RohitSurwase.UCE-Handler:uce_handler:1.4"
             }
         }
         release {

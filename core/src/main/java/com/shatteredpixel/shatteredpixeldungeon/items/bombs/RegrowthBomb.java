@@ -87,7 +87,7 @@ public class RegrowthBomb extends Bomb {
 		for (int i = 0; i < plants; i++) {
 			Integer plantPos = Random.element(plantCandidates);
 			if (plantPos != null) {
-				Dungeon.level.plant((Plant.Seed) Generator.randomUsingDefaults(Generator.Category.SEED), plantPos);
+				Dungeon.level.plant((Plant.Seed) Generator.randomUsingDefaults(Generator.Category.SEED), plantPos, Random.Int(30)==0);
 				plantCandidates.remove(plantPos);
 			}
 		}
@@ -95,18 +95,21 @@ public class RegrowthBomb extends Bomb {
 		Integer plantPos = Random.element(plantCandidates);
 		if (plantPos != null){
 			Plant.Seed plant;
+			boolean exotic = Random.Int(100)==0;
 			switch (Random.chances(new float[]{0, 6, 3, 1})){
 				case 1: default:
+					exotic = false;
 					plant = new WandOfRegrowth.Dewcatcher.Seed();
 					break;
 				case 2:
+					exotic = false;
 					plant = new WandOfRegrowth.Seedpod.Seed();
 					break;
 				case 3:
 					plant = new Starflower.Seed();
 					break;
 			}
-			Dungeon.level.plant( plant, plantPos);
+			Dungeon.level.plant( plant, plantPos, exotic);
 		}
 	}
 	

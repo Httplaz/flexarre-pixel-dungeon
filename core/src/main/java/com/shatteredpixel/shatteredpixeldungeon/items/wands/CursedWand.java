@@ -193,7 +193,7 @@ public class CursedWand {
 						&& !Dungeon.level.pit[pos]
 						&& Dungeon.level.traps.get(pos) == null
 						&& !Dungeon.isChallenged(Challenges.NO_HERBALISM)) {
-					Dungeon.level.plant((Plant.Seed) Generator.randomUsingDefaults(Generator.Category.SEED), pos);
+					Dungeon.level.plant((Plant.Seed) Generator.randomUsingDefaults(Generator.Category.SEED), pos, Random.Int(20)==0);
 					tryForWandProc(Actor.findChar(pos), origin);
 				} else {
 					return cursedEffect(origin, user, targetPos);

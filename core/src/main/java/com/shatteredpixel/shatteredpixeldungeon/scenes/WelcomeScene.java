@@ -53,7 +53,7 @@ import java.util.Collections;
 
 public class WelcomeScene extends PixelScene {
 
-	private static final int LATEST_UPDATE = ShatteredPixelDungeon.v2_3_0;
+	private static final int LATEST_UPDATE = ShatteredPixelDungeon.v_008;
 
 	//used so that the game does not keep showing the window forever if cleaning fails
 	private static boolean triedCleaningTemp = false;
@@ -240,7 +240,7 @@ public class WelcomeScene extends PixelScene {
 			Journal.loadGlobal();
 
 			//pre-unlock Duelist for those who already have a win
-			if (previousVersion <= ShatteredPixelDungeon.v2_0_2){
+			if (previousVersion <= ShatteredPixelDungeon.v_008){
 				if (Badges.isUnlocked(Badges.Badge.VICTORY) && !Badges.isUnlocked(Badges.Badge.UNLOCK_DUELIST)){
 					Badges.unlock(Badges.Badge.UNLOCK_DUELIST);
 				}

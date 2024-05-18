@@ -49,7 +49,6 @@ public class WndScoreBreakdown extends Window {
 		float pos = title.bottom()+2;
 
 		NumberFormat num = NumberFormat.getInstance(Locale.US);
-		if (Dungeon.initialVersion > ShatteredPixelDungeon.v1_2_3) {
 			pos = statSlot(this, Messages.get(this, "progress_title"),
 					num.format(Statistics.progressScore), pos, Statistics.progressScore >= 50_000);
 			pos = addInfo(this, Messages.get(this, "progress_desc"), pos);
@@ -65,14 +64,6 @@ public class WndScoreBreakdown extends Window {
 			pos = statSlot(this, Messages.get(this, "quests_title"),
 					num.format(Statistics.totalQuestScore), pos, Statistics.totalQuestScore >= 10_000);
 			pos = addInfo(this, Messages.get(this, "quests_desc"), pos);
-		} else {
-			pos = statSlot(this, Messages.get(this, "progress_title"),
-					num.format(Statistics.progressScore), pos, Statistics.progressScore >= 78_000);
-			pos = addInfo(this, Messages.get(this, "progress_desc"), pos);
-			pos = statSlot(this, Messages.get(this, "treasure_title"),
-					num.format(Statistics.treasureScore), pos, Statistics.treasureScore >= 30_000);
-			pos = addInfo(this, Messages.get(this, "treasure_desc_old"), pos);
-		}
 
 		if (Statistics.winMultiplier > 1) {
 			pos = statSlot(this, Messages.get(this, "win_multiplier"), Statistics.winMultiplier + "x", pos, false);
@@ -81,11 +72,6 @@ public class WndScoreBreakdown extends Window {
 			pos = statSlot(this, Messages.get(this, "challenge_multiplier"), Statistics.chalMultiplier + "x", pos, false);
 		}
 		pos = statSlot(this, Messages.get(this, "total"), num.format(Statistics.totalScore), pos, false);
-
-		if (Dungeon.initialVersion <= ShatteredPixelDungeon.v1_2_3){
-			pos = addInfo(this, Messages.get(this, "old_score_desc"), pos);
-		}
-
 		resize(WIDTH, (int)pos);
 
 	}

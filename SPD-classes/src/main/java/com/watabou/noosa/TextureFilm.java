@@ -30,7 +30,15 @@ import java.util.HashMap;
 public class TextureFilm {
 	
 	private static final RectF FULL = new RectF( 0, 0, 1, 1 );
-	
+
+	public int getTexWidth() {
+		return texWidth;
+	}
+
+	public int getTexHeight() {
+		return texHeight;
+	}
+
 	private int texWidth;
 	private int texHeight;
 	

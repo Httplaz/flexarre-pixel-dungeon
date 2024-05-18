@@ -21,10 +21,14 @@
 
 package com.watabou.noosa;
 
+import static java.lang.Math.random;
+
 import com.watabou.gltextures.SmartTexture;
 import com.watabou.gltextures.TextureCache;
 import com.watabou.glwrap.Quad;
+import com.watabou.glwrap.Texture;
 import com.watabou.glwrap.Vertexbuffer;
+import com.watabou.utils.Random;
 import com.watabou.utils.Rect;
 import com.watabou.utils.RectF;
 
@@ -34,215 +38,219 @@ import java.util.Arrays;
 
 public class Tilemap extends Visual {
 
-	protected SmartTexture texture;
-	protected TextureFilm tileset;
+    protected int cid = 1;
+    protected SmartTexture atlas;
+    protected Texture map;
+    protected TextureFilm tileset;
 
-	protected int[] data;
-	protected int mapWidth;
-	protected int mapHeight;
-	protected int size;
+    protected int[] data;
+    protected int mapWidth;
+    protected int mapHeight;
+    protected int size;
+    protected float[] vertices;
+    protected FloatBuffer quads;
+    protected Vertexbuffer buffer;
+    private float cellW;
+    private float cellH;
+    private Rect updating;
+    private volatile Rect updated;
+    private boolean fullUpdate;
+    private int topLeftUpdating;
+    private int bottomRightUpdating;
 
-	private float cellW;
-	private float cellH;
+    public Tilemap(Object tx, TextureFilm tileset) {
 
-	protected float[] vertices;
-	protected FloatBuffer quads;
-	protected Vertexbuffer buffer;
+        super(0, 0, 0, 0);
 
-	private volatile Rect updated;
-	private boolean fullUpdate;
-	private Rect updating;
-	private int topLeftUpdating;
-	private int bottomRightUpdating;
+        this.atlas = TextureCache.get(tx);
+        this.tileset = tileset;
 
-	public Tilemap( Object tx, TextureFilm tileset ) {
+        this.map = new Texture();
+        //this.map.bitmap(TextureCache.getBitmap(tx));
+        {
+            //this.map.bitmap(TextureCache.getBitmap(tx));
+            this.map.filter(Texture.NEAREST, Texture.NEAREST);
+            //this.map.wrap(Texture.REPEAT, Texture.REPEAT);
+        }
+        //map = new Texture();
+        //map = atlas;
+        int[] bytes = new int[48 * 48];
 
-		super( 0, 0, 0, 0 );
+        for (int i = 0; i < 48; i++)
+            for (int j = 0; j < 48; j++) {
+                bytes[j * 48 + i] = 1 + Random.Int(0xffffff)*256;//data[j * 48 + i];//i * 48 + j;
+            }
+        //map.bitmap(atlas.bitmap);
+        //map.pixels(atlas.width, atlas.height, bytes);
+        map.pixels(48, 48, bytes);
 
-		this.texture = TextureCache.get( tx );
-		this.tileset = tileset;
+        RectF r = tileset.get(0);
+        cellW = tileset.width(r);
+        cellH = tileset.height(r);
 
-		RectF r = tileset.get( 0 );
-		cellW = tileset.width( r );
-		cellH = tileset.height( r );
+        vertices = new float[16];
 
-		vertices = new float[16];
+        updated = new Rect();
+    }
 
-		updated = new Rect();
-	}
+    public void map(int[] data, int cols) {
 
-	public void map( int[] data, int cols ) {
+        this.data = data;
 
-		this.data = data;
+        mapWidth = cols;
+        mapHeight = data.length / cols;
+        size = mapWidth * mapHeight;
 
-		mapWidth = cols;
-		mapHeight = data.length / cols;
-		size = mapWidth * mapHeight;
+        width = cellW * mapWidth;
+        height = cellH * mapHeight;
 
-		width = cellW * mapWidth;
-		height = cellH * mapHeight;
+        quads = Quad.createSet(size);
 
-		quads = Quad.createSet( size );
+        float screenMesh[] = new float[16];
+        {
+            screenMesh[0] = 0;
+            screenMesh[1] = mapHeight * cellH;
 
-		updateMap();
-	}
-	
-	public Image image(int x, int y){
-		if (!needsRender(x + mapWidth*y)){
-			return null;
-		} else {
-			Image img = new Image(texture);
-			img.frame(tileset.get(data[x + mapWidth * y]));
-			return img;
-		}
-	}
+            screenMesh[2] = 0;
+            screenMesh[3] = 1;
 
-	//forces a full update, including new buffer
-	public synchronized void updateMap(){
-		updated.set( 0, 0, mapWidth, mapHeight );
-		fullUpdate = true;
-	}
+            screenMesh[4] = mapWidth * cellW;
+            screenMesh[5] = mapHeight * cellH;
 
-	public synchronized void updateMapCell(int cell){
-		updated.union( cell % mapWidth, cell / mapWidth );
-	}
+            screenMesh[6] = 1;
+            screenMesh[7] = 1;
 
-	private synchronized void moveToUpdating(){
-		updating = new Rect(updated);
-		updated.setEmpty();
-	}
+            screenMesh[8] = mapWidth * cellW;
+            screenMesh[9] = 0;
 
-	protected void updateVertices() {
+            screenMesh[10] = 1;
+            screenMesh[11] = 0;
 
-		moveToUpdating();
-		
-		float x1, y1, x2, y2;
-		int pos;
-		RectF uv;
+            screenMesh[12] = 0;
+            screenMesh[13] = 0;
 
-		y1 = cellH * updating.top;
-		y2 = y1 + cellH;
+            screenMesh[14] = 0;
+            screenMesh[15] = 0;
+        }
 
-		for (int i=updating.top; i < updating.bottom; i++) {
+        if (cid == 1) {
+            ((Buffer)quads).clear();
+            quads.put(screenMesh);
+        }
 
-			x1 = cellW * updating.left;
-			x2 = x1 + cellW;
+        updateMap();
+    }
 
-			pos = i * mapWidth + updating.left;
+    public Image image(int x, int y) {
+        if (!needsRender(x + mapWidth * y)) {
+            return null;
+        } else {
+            Image img = new Image(atlas);
+            img.frame(tileset.get(data[x + mapWidth * y]));
+            return img;
+        }
+    }
 
-			for (int j=updating.left; j < updating.right; j++) {
+    //forces a full update, including new buffer
+    public synchronized void updateMap() {
+        updated.set(0, 0, mapWidth, mapHeight);
+        fullUpdate = true;
+    }
 
-				if (topLeftUpdating == -1)
-					topLeftUpdating = pos;
+    public synchronized void updateMapCell(int cell) {
+        updated.union(cell % mapWidth, cell / mapWidth);
+    }
 
-				bottomRightUpdating = pos + 1;
+    private synchronized void moveToUpdating() {
+        updating = new Rect(updated);
+        updated.setEmpty();
+    }
 
-				((Buffer)quads).position(pos*16);
-				
-				uv = tileset.get(data[pos]);
-				
-				if (needsRender(pos) && uv != null) {
+    protected void updateVertices() {
+        moveToUpdating();
 
-					vertices[0] = x1;
-					vertices[1] = y1;
 
-					vertices[2] = uv.left;
-					vertices[3] = uv.top;
 
-					vertices[4] = x2;
-					vertices[5] = y1;
+        int lx = fullUpdate? mapWidth:updating.width();
+        int ly = fullUpdate? mapHeight:updating.height();
 
-					vertices[6] = uv.right;
-					vertices[7] = uv.top;
+        int ox = fullUpdate? 0 : updating.left;
+        int oy = fullUpdate? 0: updating.top;
 
-					vertices[8] = x2;
-					vertices[9] = y2;
+        int[] bytes = new int[lx * ly];
 
-					vertices[10] = uv.right;
-					vertices[11] = uv.bottom;
+        for (int i = 0; i < lx; i++)
+            for (int j = 0; j < ly; j++) {
+                bytes[j * lx + i] = data[(j+oy) * mapWidth + i+ox] + Random.Int(0x00fffffe)*256;
+            }
+        if(fullUpdate){
+            map.pixels(mapWidth, mapHeight, bytes);
+        }
+        else {
+            map.pixels(ox, oy, lx, ly, bytes);
+        }
+        fullUpdate = false;
+    }
 
-					vertices[12] = x1;
-					vertices[13] = y2;
+    float time = 0.f;
+    @Override
+    public void draw() {
+        //TODO HACK
+        ((NoosaScriptFlex) script()).uTilesetWidth.value1i(tileset.getTexWidth()/16);
+        ((NoosaScriptFlex) script()).uTilesetHeight.value1i(tileset.getTexHeight()/16);
 
-					vertices[14] = uv.left;
-					vertices[15] = uv.bottom;
+        time+=0.01f;
+        super.draw();
 
-				} else {
+        //TODO HACK
+        ((NoosaScriptFlex) script()).uMapWidth.value1i(mapWidth);
+        ((NoosaScriptFlex) script()).uMapHeight.value1i(mapHeight);
+        ((NoosaScriptFlex) script()).uTime.value1f(time);
 
-					//If we don't need to draw this tile simply set the quad to size 0 at 0, 0.
-					// This does result in the quad being drawn, but we are skipping all
-					// pixel-filling. This is better than fully skipping rendering as we
-					// don't need to manage a buffer of drawable tiles with insertions/deletions.
-					Arrays.fill(vertices, 0);
-				}
 
-				quads.put(vertices);
+        if (!updated.isEmpty()) {
+            updateVertices();
+            if (buffer == null)
+                buffer = new Vertexbuffer(quads);
+            topLeftUpdating = -1;
+        }
+        NoosaScriptFlex script = (NoosaScriptFlex) script();
 
-				pos++;
-				x1 = x2;
-				x2 += cellW;
+        script.setAtlasAndMapTexUnitId(0, 1);
 
-			}
+        Texture.activate(0);
+        atlas.bind();
 
-			y1 = y2;
-			y2 += cellH;
-		}
+        Texture.activate(1);
+        map.bind();
 
-	}
 
-	//private int camX, camY, camW, camH;
-	//private int topLeft, bottomRight, length;
+        //Texture.activate(1);
+        script.uModel.valueM4(matrix);
+        script.lighting(
+                rm, gm, bm, am,
+                ra, ga, ba, aa);
 
-	@Override
-	public void draw() {
+        script.camera(camera);
 
-		super.draw();
+        script.drawQuadSet(buffer, size, 0);
+        Texture.activate(0);
+    }
 
-		if (!updated.isEmpty()) {
-			updateVertices();
-			if (buffer == null)
-				buffer = new Vertexbuffer(quads);
-			else {
-				if (fullUpdate) {
-					buffer.updateVertices(quads);
-					fullUpdate = false;
-				} else {
-					buffer.updateVertices(quads,
-							topLeftUpdating * 16,
-							bottomRightUpdating * 16);
-				}
-			}
-			topLeftUpdating = -1;
-			updating.setEmpty();
-		}
+    protected NoosaScript script() {
+        return NoosaScriptFlex.get();
+    }
 
-		NoosaScript script = script();
+    @Override
+    public void destroy() {
+        super.destroy();
+        if (buffer != null)
+            buffer.delete();
+    }
 
-		texture.bind();
+    protected boolean needsRender(int pos) {
+        return data[pos] >= 0;
+    }
 
-		script.uModel.valueM4( matrix );
-		script.lighting(
-				rm, gm, bm, am,
-				ra, ga, ba, aa );
-
-		script.camera( camera );
-
-		script.drawQuadSet( buffer, size, 0 );
-
-	}
-	
-	protected NoosaScript script(){
-		return NoosaScriptNoLighting.get();
-	}
-
-	@Override
-	public void destroy() {
-		super.destroy();
-		if (buffer != null)
-			buffer.delete();
-	}
-
-	protected boolean needsRender(int pos){
-		return data[pos] >= 0;
-	}
+    //public int getBlankTile
 }

@@ -53,6 +53,8 @@ public abstract class Plant implements Bundlable {
 	public int image;
 	public int pos;
 
+	public boolean exotic = false;
+
 	protected Class<? extends Plant.Seed> seedClass;
 
 	public void trigger(){
@@ -69,11 +71,15 @@ public abstract class Plant implements Bundlable {
 		}
 
 		wither();
-		activate( ch );
+		if(exotic)
+			activateEx(ch);
+		else
+			activate( ch );
 	}
 	
 	public abstract void activate( Char ch );
-	
+	public void activateEx( Char ch ){activate(ch);};
+
 	public void wither() {
 		Dungeon.level.uproot( pos );
 
@@ -93,22 +99,26 @@ public abstract class Plant implements Bundlable {
 
 		if (Random.Float() < seedChance){
 			if (seedClass != null && seedClass != Rotberry.Seed.class) {
-				Dungeon.level.drop(Reflection.newInstance(seedClass), pos).sprite.drop();
+				Seed s = Reflection.newInstance(seedClass);
+				s.exotic = exotic;
+				Dungeon.level.drop(s, pos).sprite.drop();
 			}
 		}
 		
 	}
 	
 	private static final String POS	= "pos";
-
+	private static final String EX	= "ex";
 	@Override
 	public void restoreFromBundle( Bundle bundle ) {
 		pos = bundle.getInt( POS );
+		exotic = bundle.getBoolean(EX);
 	}
 
 	@Override
 	public void storeInBundle( Bundle bundle ) {
 		bundle.put( POS, pos );
+		bundle.put(EX, exotic);
 	}
 
 	public String name(){
@@ -126,7 +136,7 @@ public abstract class Plant implements Bundlable {
 	public static class Seed extends Item {
 
 		public static final String AC_PLANT	= "PLANT";
-		
+		private static final String EX	= "ex";
 		private static final float TIME_TO_PLANT = 1f;
 		
 		{
@@ -135,7 +145,37 @@ public abstract class Plant implements Bundlable {
 		}
 		
 		protected Class<? extends Plant> plantClass;
-		
+
+		public boolean exotic;
+
+		public Seed()
+		{
+			exotic = true;
+		}
+
+		@Override
+		public boolean isSimilar(Item item) {
+			return super.isSimilar(item) && exotic==((Seed)item).exotic;
+		}
+
+		@Override
+		public int image()
+		{
+			return super.image() + (exotic ? 16 : 0);
+		}
+
+		@Override
+		public void storeInBundle(Bundle bundle) {
+			super.storeInBundle(bundle);
+			bundle.put(EX, exotic);
+		}
+
+		@Override
+		public void restoreFromBundle(Bundle bundle) {
+			super.restoreFromBundle(bundle);
+			exotic = bundle.getBoolean(EX);
+		}
+
 		@Override
 		public ArrayList<String> actions( Hero hero ) {
 			ArrayList<String> actions = super.actions( hero );
@@ -151,7 +191,7 @@ public abstract class Plant implements Bundlable {
 					|| Dungeon.isChallenged(Challenges.NO_HERBALISM)) {
 				super.onThrow( cell );
 			} else {
-				Dungeon.level.plant( this, cell );
+				Dungeon.level.plant( this, cell, exotic );
 				if (Dungeon.hero.subClass == HeroSubClass.WARDEN) {
 					for (int i : PathFinder.NEIGHBOURS8) {
 						int c = Dungeon.level.map[cell + i];

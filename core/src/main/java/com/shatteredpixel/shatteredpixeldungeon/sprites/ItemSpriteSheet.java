@@ -586,14 +586,19 @@ public class ItemSpriteSheet {
 		for (int i = SEEDS; i < SEEDS+16; i++)
 			assignItemRect(i, 10, 10);
 	}
-	
-	private static final int BREWS          =                               xy(1, 25);  //8 slots
+
+	private static final int EXOTIC_SEEDS   =                               xy(1, 25);  //8 slots
+	static{
+		for (int i = EXOTIC_SEEDS; i < EXOTIC_SEEDS+16; i++)
+			assignItemRect(i, 10, 10);
+	}
+	private static final int BREWS          =                               xy(1, 26);  //8 slots
 	public static final int BREW_INFERNAL   = BREWS+0;
 	public static final int BREW_BLIZZARD   = BREWS+1;
 	public static final int BREW_SHOCKING   = BREWS+2;
 	public static final int BREW_CAUSTIC    = BREWS+3;
 	
-	private static final int ELIXIRS        =                               xy(9, 25);  //8 slots
+	private static final int ELIXIRS        =                               xy(9, 26);  //8 slots
 	public static final int ELIXIR_HONEY    = ELIXIRS+0;
 	public static final int ELIXIR_AQUA     = ELIXIRS+1;
 	public static final int ELIXIR_MIGHT    = ELIXIRS+2;
@@ -605,8 +610,6 @@ public class ItemSpriteSheet {
 		for (int i = BREWS; i < BREWS+16; i++)
 			assignItemRect(i, 12, 14);
 	}
-	
-	                                                                                    //16 free slots
 	
 	private static final int SPELLS         =                               xy(1, 27);  //16 slots
 	public static final int MAGIC_PORTER    = SPELLS+0;

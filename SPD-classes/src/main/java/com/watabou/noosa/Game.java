@@ -46,285 +46,282 @@ import java.io.StringWriter;
 
 public class Game implements ApplicationListener {
 
-	public static Game instance;
+    public static Game instance;
 
-	//actual size of the display
-	public static int dispWidth;
-	public static int dispHeight;
-	
-	// Size of the EGL surface view
-	public static int width;
-	public static int height;
+    //actual size of the display
+    public static int dispWidth;
+    public static int dispHeight;
 
-	//number of pixels from bottom of view before rendering starts
-	public static int bottomInset;
+    // Size of the EGL surface view
+    public static int width;
+    public static int height;
 
-	// Density: mdpi=1, hdpi=1.5, xhdpi=2...
-	public static float density = 1;
-	
-	public static String version;
-	public static int versionCode;
-	
-	// Current scene
-	protected Scene scene;
-	// New scene we are going to switch to
-	protected Scene requestedScene;
-	// true if scene switch is requested
-	protected boolean requestedReset = true;
-	// callback to perform logic during scene change
-	protected SceneChangeCallback onChange;
-	// New scene class
-	protected static Class<? extends Scene> sceneClass;
-	
-	public static float timeScale = 1f;
-	public static float elapsed = 0f;
-	public static float timeTotal = 0f;
-	public static long realTime = 0;
+    //number of pixels from bottom of view before rendering starts
+    public static int bottomInset;
 
-	public static InputHandler inputHandler;
-	
-	public static PlatformSupport platform;
-	
-	public Game(Class<? extends Scene> c, PlatformSupport platform) {
-		sceneClass = c;
-		
-		instance = this;
-		this.platform = platform;
-	}
-	
-	@Override
-	public void create() {
-		density = Gdx.graphics.getDensity();
-		if (density == Float.POSITIVE_INFINITY){
-			density = 100f / 160f; //assume 100PPI if density can't be found
-		}
-		dispHeight = Gdx.graphics.getDisplayMode().height;
-		dispWidth = Gdx.graphics.getDisplayMode().width;
+    // Density: mdpi=1, hdpi=1.5, xhdpi=2...
+    public static float density = 1;
 
-		inputHandler = new InputHandler( Gdx.input );
-		if (ControllerHandler.controllersSupported()){
-			Controllers.addListener(new ControllerHandler());
-		}
+    public static String version;
+    public static int versionCode;
+    public static float timeScale = 1f;
+    public static float elapsed = 0f;
+    public static float timeTotal = 0f;
+    public static long realTime = 0;
+    public static InputHandler inputHandler;
+    public static PlatformSupport platform;
+    // New scene class
+    protected static Class<? extends Scene> sceneClass;
+    // Current scene
+    protected Scene scene;
+    // New scene we are going to switch to
+    protected Scene requestedScene;
+    // true if scene switch is requested
+    protected boolean requestedReset = true;
+    // callback to perform logic during scene change
+    protected SceneChangeCallback onChange;
+    private GLVersion versionContextRef;
+    ///justResumed is used for two purposes:
+    //firstly, to clear pointer events when the game is resumed,
+    // this helps with input errors caused by system gestures on iOS/Android
+    //secondly, as a bit of a hack to improve start time metrics on Android,
+    // as texture refreshing leads to slow warm starts. TODO would be nice to fix this properly
+    private boolean justResumed = true;
 
-		//refreshes texture and vertex data stored on the gpu
-		versionContextRef = Gdx.graphics.getGLVersion();
-		Blending.useDefault();
-		TextureCache.reload();
-		Vertexbuffer.reload();
-	}
+    public Game(Class<? extends Scene> c, PlatformSupport platform) {
+        sceneClass = c;
 
-	private GLVersion versionContextRef;
-	
-	@Override
-	public void resize(int width, int height) {
-		if (width == 0 || height == 0){
-			return;
-		}
+        instance = this;
+        this.platform = platform;
+    }
 
-		//If the EGL context was destroyed, we need to refresh some data stored on the GPU.
-		// This checks that by seeing if GLVersion has a new object reference
-		if (versionContextRef != Gdx.graphics.getGLVersion()) {
-			versionContextRef = Gdx.graphics.getGLVersion();
-			Blending.useDefault();
-			TextureCache.reload();
-			Vertexbuffer.reload();
-		}
+    public static void resetScene() {
+        switchScene(instance.sceneClass);
+    }
 
-		height -= bottomInset;
-		if (height != Game.height || width != Game.width) {
+    public static void switchScene(Class<? extends Scene> c) {
+        switchScene(c, null);
+    }
 
-			Game.width = width;
-			Game.height = height;
-			
-			//TODO might be better to put this in platform support
-			if (Gdx.app.getType() != Application.ApplicationType.Android){
-				Game.dispWidth = Game.width;
-				Game.dispHeight = Game.height;
-			}
-			
-			resetScene();
-		}
-	}
+    public static void switchScene(Class<? extends Scene> c, SceneChangeCallback callback) {
+        instance.sceneClass = c;
+        instance.requestedReset = true;
+        instance.onChange = callback;
+    }
 
-	///justResumed is used for two purposes:
-	//firstly, to clear pointer events when the game is resumed,
-	// this helps with input errors caused by system gestures on iOS/Android
-	//secondly, as a bit of a hack to improve start time metrics on Android,
-	// as texture refreshing leads to slow warm starts. TODO would be nice to fix this properly
-	private boolean justResumed = true;
+    public static Scene scene() {
+        return instance.scene;
+    }
 
-	@Override
-	public void render() {
-		//prevents weird rare cases where the app is running twice
-		if (instance != this){
-			finish();
-			return;
-		}
+    public static void reportException(Throwable tr) {
+        if (instance != null && Gdx.app != null) {
+            instance.logException(tr);
+        } else {
+            //fallback if error happened in initialization
+            StringWriter sw = new StringWriter();
+            PrintWriter pw = new PrintWriter(sw);
+            tr.printStackTrace(pw);
+            pw.flush();
+            System.err.println(sw.toString());
+        }
+    }
 
-		if (justResumed){
-			PointerEvent.clearPointerEvents();
-			justResumed = false;
-			if (DeviceCompat.isAndroid()) return;
-		}
+    public static void runOnRenderThread(Callback c) {
+        Gdx.app.postRunnable(new Runnable() {
+            @Override
+            public void run() {
+                c.call();
+            }
+        });
+    }
 
-		NoosaScript.get().resetCamera();
-		NoosaScriptNoLighting.get().resetCamera();
-		Gdx.gl.glDisable(Gdx.gl.GL_SCISSOR_TEST);
-		Gdx.gl.glClear(Gdx.gl.GL_COLOR_BUFFER_BIT);
-		draw();
+    public static void vibrate(int milliseconds) {
+        if (platform.supportsVibration()) {
+            platform.vibrate(milliseconds);
+        }
+    }
 
-		Gdx.gl.glDisable( Gdx.gl.GL_SCISSOR_TEST );
-		
-		step();
-	}
-	
-	@Override
-	public void pause() {
-		PointerEvent.clearPointerEvents();
-		
-		if (scene != null) {
-			scene.onPause();
-		}
-		
-		Script.reset();
-	}
-	
-	@Override
-	public void resume() {
-		justResumed = true;
-	}
-	
-	public void finish(){
-		Gdx.app.exit();
-		
-	}
-	
-	public void destroy(){
-		if (scene != null) {
-			scene.destroy();
-			scene = null;
-		}
-		
-		sceneClass = null;
-		Music.INSTANCE.stop();
-		Sample.INSTANCE.reset();
-	}
-	
-	@Override
-	public void dispose() {
-		destroy();
-	}
-	
-	public static void resetScene() {
-		switchScene( instance.sceneClass );
-	}
+    @Override
+    public void create() {
+        density = Gdx.graphics.getDensity();
+        if (density == Float.POSITIVE_INFINITY) {
+            density = 100f / 160f; //assume 100PPI if density can't be found
+        }
+        dispHeight = Gdx.graphics.getDisplayMode().height;
+        dispWidth = Gdx.graphics.getDisplayMode().width;
 
-	public static void switchScene(Class<? extends Scene> c) {
-		switchScene(c, null);
-	}
-	
-	public static void switchScene(Class<? extends Scene> c, SceneChangeCallback callback) {
-		instance.sceneClass = c;
-		instance.requestedReset = true;
-		instance.onChange = callback;
-	}
-	
-	public static Scene scene() {
-		return instance.scene;
-	}
-	
-	protected void step() {
-		
-		if (requestedReset) {
-			requestedReset = false;
-			
-			requestedScene = Reflection.newInstance(sceneClass);
-			if (requestedScene != null){
-				switchScene();
-			}
+        inputHandler = new InputHandler(Gdx.input);
+        if (ControllerHandler.controllersSupported()) {
+            Controllers.addListener(new ControllerHandler());
+        }
 
-		}
-		
-		update();
-	}
-	
-	protected void draw() {
-		if (scene != null) scene.draw();
-	}
-	
-	protected void switchScene() {
+        //refreshes texture and vertex data stored on the gpu
+        versionContextRef = Gdx.graphics.getGLVersion();
+        Blending.useDefault();
+        TextureCache.reload();
+        Vertexbuffer.reload();
+    }
 
-		Camera.reset();
-		
-		if (scene != null) {
-			scene.destroy();
-		}
-		//clear any leftover vertex buffers
-		Vertexbuffer.clear();
-		scene = requestedScene;
-		if (onChange != null) onChange.beforeCreate();
-		scene.create();
-		if (onChange != null) onChange.afterCreate();
-		onChange = null;
-		
-		Game.elapsed = 0f;
-		Game.timeScale = 1f;
-		Game.timeTotal = 0f;
-	}
+    @Override
+    public void resize(int width, int height) {
+        if (width == 0 || height == 0) {
+            return;
+        }
 
-	protected void update() {
-		Game.elapsed = Game.timeScale * Gdx.graphics.getDeltaTime();
-		Game.timeTotal += Game.elapsed;
-		
-		Game.realTime = TimeUtils.millis();
+        //If the EGL context was destroyed, we need to refresh some data stored on the GPU.
+        // This checks that by seeing if GLVersion has a new object reference
+        if (versionContextRef != Gdx.graphics.getGLVersion()) {
+            versionContextRef = Gdx.graphics.getGLVersion();
+            Blending.useDefault();
+            TextureCache.reload();
+            Vertexbuffer.reload();
+        }
 
-		inputHandler.processAllEvents();
+        height -= bottomInset;
+        if (height != Game.height || width != Game.width) {
 
-		Music.INSTANCE.update();
-		Sample.INSTANCE.update();
-		scene.update();
-		Camera.updateAll();
-	}
-	
-	public static void reportException( Throwable tr ) {
-		if (instance != null && Gdx.app != null) {
-			instance.logException(tr);
-		} else {
-			//fallback if error happened in initialization
-			StringWriter sw = new StringWriter();
-			PrintWriter pw = new PrintWriter(sw);
-			tr.printStackTrace(pw);
-			pw.flush();
-			System.err.println(sw.toString());
-		}
-	}
-	
-	protected void logException( Throwable tr ){
-		StringWriter sw = new StringWriter();
-		PrintWriter pw = new PrintWriter(sw);
-		tr.printStackTrace(pw);
-		pw.flush();
-		Gdx.app.error("GAME", sw.toString());
-	}
-	
-	public static void runOnRenderThread(Callback c){
-		Gdx.app.postRunnable(new Runnable() {
-			@Override
-			public void run() {
-				c.call();
-			}
-		});
-	}
-	
-	public static void vibrate( int milliseconds ) {
-		if (platform.supportsVibration()) {
-			platform.vibrate(milliseconds);
-		}
-	}
+            Game.width = width;
+            Game.height = height;
 
-	public interface SceneChangeCallback{
-		void beforeCreate();
-		void afterCreate();
-	}
-	
+            //TODO might be better to put this in platform support
+            if (Gdx.app.getType() != Application.ApplicationType.Android) {
+                Game.dispWidth = Game.width;
+                Game.dispHeight = Game.height;
+            }
+
+            resetScene();
+        }
+    }
+
+    @Override
+    public void render() {
+        //prevents weird rare cases where the app is running twice
+        if (instance != this) {
+            finish();
+            return;
+        }
+
+        if (justResumed) {
+            PointerEvent.clearPointerEvents();
+            justResumed = false;
+            if (DeviceCompat.isAndroid()) return;
+        }
+
+        NoosaScript.get().resetCamera();
+        NoosaScriptNoLighting.get().resetCamera();
+        NoosaScriptFlex.get().resetCamera();
+        NoosaScriptFlexWater.get().resetCamera();
+        Gdx.gl.glDisable(Gdx.gl.GL_SCISSOR_TEST);
+        Gdx.gl.glClear(Gdx.gl.GL_COLOR_BUFFER_BIT);
+        draw();
+
+        Gdx.gl.glDisable(Gdx.gl.GL_SCISSOR_TEST);
+
+        step();
+    }
+
+    @Override
+    public void pause() {
+        PointerEvent.clearPointerEvents();
+
+        if (scene != null) {
+            scene.onPause();
+        }
+
+        Script.reset();
+    }
+
+    @Override
+    public void resume() {
+        justResumed = true;
+    }
+
+    public void finish() {
+        Gdx.app.exit();
+
+    }
+
+    public void destroy() {
+        if (scene != null) {
+            scene.destroy();
+            scene = null;
+        }
+
+        sceneClass = null;
+        Music.INSTANCE.stop();
+        Sample.INSTANCE.reset();
+    }
+
+    @Override
+    public void dispose() {
+        destroy();
+    }
+
+    protected void step() {
+
+        if (requestedReset) {
+            requestedReset = false;
+
+            requestedScene = Reflection.newInstance(sceneClass);
+            if (requestedScene != null) {
+                switchScene();
+            }
+
+        }
+
+        update();
+    }
+
+    protected void draw() {
+        if (scene != null) scene.draw();
+    }
+
+    protected void switchScene() {
+
+        Camera.reset();
+
+        if (scene != null) {
+            scene.destroy();
+        }
+        //clear any leftover vertex buffers
+        Vertexbuffer.clear();
+        scene = requestedScene;
+        if (onChange != null) onChange.beforeCreate();
+        scene.create();
+        if (onChange != null) onChange.afterCreate();
+        onChange = null;
+
+        Game.elapsed = 0f;
+        Game.timeScale = 1f;
+        Game.timeTotal = 0f;
+    }
+
+    protected void update() {
+        Game.elapsed = Game.timeScale * Gdx.graphics.getDeltaTime();
+        Game.timeTotal += Game.elapsed;
+
+        Game.realTime = TimeUtils.millis();
+
+        inputHandler.processAllEvents();
+
+        Music.INSTANCE.update();
+        Sample.INSTANCE.update();
+        scene.update();
+        Camera.updateAll();
+    }
+
+    protected void logException(Throwable tr) {
+        StringWriter sw = new StringWriter();
+        PrintWriter pw = new PrintWriter(sw);
+        tr.printStackTrace(pw);
+        pw.flush();
+        Gdx.app.error("GAME", sw.toString());
+    }
+
+    public interface SceneChangeCallback {
+        void beforeCreate();
+
+        void afterCreate();
+    }
+
 }

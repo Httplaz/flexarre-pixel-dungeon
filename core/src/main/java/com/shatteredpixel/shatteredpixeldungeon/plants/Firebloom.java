@@ -24,12 +24,14 @@ package com.shatteredpixel.shatteredpixeldungeon.plants;
 import com.shatteredpixel.shatteredpixeldungeon.Dungeon;
 import com.shatteredpixel.shatteredpixeldungeon.actors.Char;
 import com.shatteredpixel.shatteredpixeldungeon.actors.blobs.Blob;
+import com.shatteredpixel.shatteredpixeldungeon.actors.blobs.CrimsonFire;
 import com.shatteredpixel.shatteredpixeldungeon.actors.blobs.Fire;
 import com.shatteredpixel.shatteredpixeldungeon.actors.buffs.Buff;
 import com.shatteredpixel.shatteredpixeldungeon.actors.buffs.FireImbue;
 import com.shatteredpixel.shatteredpixeldungeon.actors.hero.Hero;
 import com.shatteredpixel.shatteredpixeldungeon.actors.hero.HeroSubClass;
 import com.shatteredpixel.shatteredpixeldungeon.effects.CellEmitter;
+import com.shatteredpixel.shatteredpixeldungeon.effects.particles.CrimsonFlameParticle;
 import com.shatteredpixel.shatteredpixeldungeon.effects.particles.FlameParticle;
 import com.shatteredpixel.shatteredpixeldungeon.scenes.GameScene;
 import com.shatteredpixel.shatteredpixeldungeon.sprites.ItemSpriteSheet;
@@ -52,6 +54,15 @@ public class Firebloom extends Plant {
 		
 		if (Dungeon.level.heroFOV[pos]) {
 			CellEmitter.get( pos ).burst( FlameParticle.FACTORY, 5 );
+		}
+	}
+
+	@Override
+	public void activateEx( Char ch ) {
+		GameScene.add( Blob.seed( pos, 2, CrimsonFire.class ) );
+
+		if (Dungeon.level.heroFOV[pos]) {
+			CellEmitter.get( pos ).burst( CrimsonFlameParticle.FACTORY, 5 );
 		}
 	}
 	

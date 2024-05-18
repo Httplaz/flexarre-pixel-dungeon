@@ -13,11 +13,11 @@ buildscript {
 allprojects {
 
     ext {
-        appName = 'Shattered Pixel Dungeon'
-        appPackageName = 'com.shatteredpixel.shatteredpixeldungeon'
+        appName = 'Flexarre Pixel Dungeon'
+        appPackageName = 'com.httplaz.flexarrepixeldungeon'
 
-        appVersionCode = 768
-        appVersionName = '2.3.2'
+        appVersionCode = 8
+        appVersionName = '0.0.8'
 
         appJavaCompatibility = JavaVersion.VERSION_1_8
 
@@ -35,6 +35,7 @@ allprojects {
         google()
         mavenCentral()
         maven { url 'https://oss.sonatype.org/content/repositories/snapshots' }
+        maven { url 'https://jitpack.io'}
     }
 
 }

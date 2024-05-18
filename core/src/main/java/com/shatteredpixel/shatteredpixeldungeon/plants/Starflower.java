@@ -55,6 +55,22 @@ public class Starflower extends Plant {
 
 	}
 
+	@Override
+	public void activateEx( Char ch ) {
+
+		if (ch != null) {
+			Buff.prolong(ch, Bless.class, Bless.DURATION);
+			if (Dungeon.level.heroFOV[ch.pos]){
+				new Flare(6, 32).color(0xFFFF00, true).show(ch.sprite, 2f);
+			}
+			if (ch instanceof Hero && ((Hero) ch).subClass == HeroSubClass.WARDEN){
+				Buff.prolong(ch, Recharging.class, Recharging.DURATION);
+				SpellSprite.show( ch, SpellSprite.CHARGE );
+			}
+		}
+
+	}
+
 	public static class Seed extends Plant.Seed{
 
 		{

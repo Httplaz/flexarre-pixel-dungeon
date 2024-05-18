@@ -171,13 +171,13 @@ public class WandOfRegrowth extends Wand {
 		if (!cells.isEmpty() && Random.Float() > furrowedChance &&
 				(Random.Int(6) < chrgUsed)){ // 16%/33%/50% chance to spawn a seed pod or dewcatcher
 			int cell = cells.remove(0);
-			Dungeon.level.plant( Random.Int(2) == 0 ? new Seedpod.Seed() : new Dewcatcher.Seed(), cell);
+			Dungeon.level.plant( Random.Int(2) == 0 ? new Seedpod.Seed() : new Dewcatcher.Seed(), cell, false);
 		}
 
 		if (!cells.isEmpty() && Random.Float() > furrowedChance &&
-				(Random.Int(3) < chrgUsed)){ // 33%/66%/100% chance to spawn a plant
+				(Random.Int(3) < chrgUsed)){ // 33%/66%/100% chance to spawn a plant, 1% to spawn exotic
 			int cell = cells.remove(0);
-			Dungeon.level.plant((Plant.Seed) Generator.randomUsingDefaults(Generator.Category.SEED), cell);
+			Dungeon.level.plant((Plant.Seed) Generator.randomUsingDefaults(Generator.Category.SEED), cell, Random.Int(100)==0);
 		}
 
 		for (int cell : cells){
